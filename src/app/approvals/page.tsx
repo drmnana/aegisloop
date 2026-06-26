@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ensureDemoProject } from "@/server/app";
 
+export const dynamic = "force-dynamic";
+
 export default async function ApprovalsPage() {
   const snapshot = await ensureDemoProject();
   return (

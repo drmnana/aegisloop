@@ -44,13 +44,34 @@ A developer can run the app locally and demonstrate:
 
 ## Phase 1 local app
 
-The Phase 1 scaffold now includes a Next.js local vertical slice.
+The Phase 1 app is a Next.js local vertical slice backed by Prisma/Postgres at runtime.
+It does not silently fall back to in-memory storage.
 
-Install and run:
+Install dependencies:
 
 ```bash
-npm install
-npm run dev
+pnpm install
+```
+
+Configure environment:
+
+```bash
+cp .env.example .env.local
+```
+
+Set `DATABASE_URL` to a real PostgreSQL database.
+
+Generate Prisma client and apply migrations:
+
+```bash
+pnpm run prisma:generate
+pnpm run prisma:migrate
+```
+
+Run the app:
+
+```bash
+pnpm run dev
 ```
 
 Then open `http://localhost:3000`.
@@ -58,11 +79,15 @@ Then open `http://localhost:3000`.
 Useful commands:
 
 ```bash
-npm test
-npm run build
-npm run prisma:generate
+pnpm test
+pnpm run build
+pnpm run durability:proof
 ```
 
-Copy `.env.example` to `.env.local` and set `OPENAI_API_KEY` only when manually testing the real OpenAI provider. Automated tests use `MockAIProvider` and do not require an API key.
+`pnpm run durability:proof` requires `DATABASE_URL` to point at a real PostgreSQL database. It applies migrations, starts the local Next.js server on port `3010`, starts a workflow, runs two `/api/workflows/runNext` calls, fully kills the server process, restarts it, runs the next step, reaches human approval, approves the workflow, and verifies persisted approvals, decisions, model calls, audit records, and local output references.
+
+Approved outputs are written by `LocalDiskProvider` under `LOCAL_STORAGE_ROOT`, which defaults to `./storage`.
+
+Set `OPENAI_API_KEY` only when manually testing the real OpenAI provider. Automated tests use `MockAIProvider` and do not require an API key.
 
 Implementation details are in `docs/phase-1-implementation-note.md`.

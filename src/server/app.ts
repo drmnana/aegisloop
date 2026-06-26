@@ -1,16 +1,29 @@
 import { ApprovalService, createServices, ProjectService, WorkflowEngine } from "./services";
 
-export const services = createServices();
+let runtimeServices: ReturnType<typeof createServices> | undefined;
 
-export const projectService = new ProjectService(services);
-export const workflowEngine = new WorkflowEngine(services);
-export const approvalService = new ApprovalService(services);
+export function getServices() {
+  runtimeServices ??= createServices();
+  return runtimeServices;
+}
+
+export function getProjectService() {
+  return new ProjectService(getServices());
+}
+
+export function getWorkflowEngine() {
+  return new WorkflowEngine(getServices());
+}
+
+export function getApprovalService() {
+  return new ApprovalService(getServices());
+}
 
 export async function ensureDemoProject() {
   try {
-    return await projectService.getSnapshot();
+    return await getProjectService().getSnapshot();
   } catch {
-    return projectService.createProject({
+    return getProjectService().createProject({
       organizationName: "AegisLoop Demo Org",
       workspaceName: "Phase 1 Workspace",
       projectName: "Phase 1 Controlled Workflow",

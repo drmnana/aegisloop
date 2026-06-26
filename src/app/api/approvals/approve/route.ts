@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import { approvalService, ensureDemoProject, services } from "@/server/app";
+import { ensureDemoProject, getApprovalService, getServices } from "@/server/app";
 import { recordPermissionDenied } from "@/server/services";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const snapshot = await ensureDemoProject();
   const body = await request.json();
   const user = snapshot.users.find((item) => item.id === body.userId) ?? snapshot.users[0];
   try {
-    await approvalService.approve({
+    await getApprovalService().approve({
       actor: body.actorType === "ai" ? { type: "ai", id: "ai-agent" } : { type: "human", id: user.id },
       actorRole: user.role,
       workflowRunId: body.workflowRunId
@@ -15,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     await recordPermissionDenied(
-      services,
+      getServices(),
       { type: body.actorType === "ai" ? "ai" : "human", id: user.id },
       snapshot.organization.id,
       snapshot.project.id,

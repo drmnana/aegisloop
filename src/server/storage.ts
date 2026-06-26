@@ -16,7 +16,7 @@ export interface BlobStore {
 }
 
 export class LocalDiskProvider implements BlobStore {
-  constructor(private readonly root: string = process.env.LOCAL_DISK_ROOT ?? "./storage") {}
+  constructor(private readonly root: string = process.env.LOCAL_STORAGE_ROOT ?? process.env.LOCAL_DISK_ROOT ?? "./storage") {}
 
   private resolve(blobPath: string): string {
     const cleanPath = blobPath.replace(/^[/\\]+/, "");

@@ -5,7 +5,8 @@ import { LocalDiskProvider } from "./storage";
 import { assertHumanPermission, PermissionDeniedError } from "./permissions";
 import type { Actor, ProjectSnapshot, Role, WorkflowRun, WorkflowStep } from "./types";
 import type { CreateProjectInput, Repository } from "./repository";
-import { InMemoryRepository } from "./repository";
+import { PrismaRepository } from "./prismaRepository";
+import { prisma } from "./prisma";
 
 export interface Services {
   repo: Repository;
@@ -14,11 +15,19 @@ export interface Services {
 }
 
 export function createServices(overrides: Partial<Services> = {}): Services {
+  const repo = overrides.repo ?? createRuntimeRepository();
   return {
-    repo: overrides.repo ?? new InMemoryRepository(),
+    repo,
     ai: overrides.ai ?? (process.env.OPENAI_API_KEY ? new OpenAIProvider() : new MockAIProvider()),
     storage: overrides.storage ?? new LocalDiskProvider(),
   };
+}
+
+function createRuntimeRepository(): Repository {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required. Runtime services use Prisma/Postgres and cannot fall back to in-memory storage.");
+  }
+  return new PrismaRepository(prisma);
 }
 
 export class ProjectService {
