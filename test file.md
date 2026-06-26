@@ -41,28 +41,3 @@ A developer can run the app locally and demonstrate:
 11. Model calls are visible.
 12. AI approval is impossible.
 13. Automated tests use MockAIProvider and do not require OpenAI.
-
-## Phase 1 local app
-
-The Phase 1 scaffold now includes a Next.js local vertical slice.
-
-Install and run:
-
-```bash
-npm install
-npm run dev
-```
-
-Then open `http://localhost:3000`.
-
-Useful commands:
-
-```bash
-npm test
-npm run build
-npm run prisma:generate
-```
-
-Copy `.env.example` to `.env.local` and set `OPENAI_API_KEY` only when manually testing the real OpenAI provider. Automated tests use `MockAIProvider` and do not require an API key.
-
-Implementation details are in `docs/phase-1-implementation-note.md`.

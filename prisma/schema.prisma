@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ActorType {
+  human
+  ai
+  system
+}
+
+enum MembershipRole {
+  owner
+  admin
+  editor
+  approver
+  viewer
+}
+
+enum WorkflowRunStatus {
+  pending
+  running
+  waiting_for_human
+  approved
+  rejected
+  failed
+}
+
+enum WorkflowStepType {
+  draft
+  critique
+  revise
+  human_approve
+}
+
+enum WorkflowStepStatus {
+  pending
+  running
+  completed
+  waiting_for_human
+  failed
+  skipped
+}
+
+enum ApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum DecisionStatus {
+  proposed
+  approved
+  rejected
+  superseded
+  archived
+}
+
+enum ModelCallStatus {
+  succeeded
+  failed
+}
+
+model Organization {
+  id          String       @id @default(cuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  workspaces  Workspace[]
+  agents      Agent[]
+  audits      AuditEvent[]
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  messages    Message[]
+  approvals   Approval[]   @relation("ApprovalActor")
+}
+
+model Membership {
+  id             String         @id @default(cuid())
+  organizationId String
+  userId         String
+  role           MembershipRole
+  createdAt      DateTime       @default(now())
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  user           User           @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId])
+}
+
+model Workspace {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  projects       Project[]
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  name           String
+  objective      String
+  createdAt      DateTime      @default(now())
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id])
+  threads        Thread[]
+  workflowRuns   WorkflowRun[]
+  decisions      Decision[]
+}
+
+model Thread {
+  id        String    @id @default(cuid())
+  projectId String
+  title     String
+  createdAt DateTime  @default(now())
+  project   Project   @relation(fields: [projectId], references: [id])
+  messages  Message[]
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  threadId  String
+  userId    String?
+  actorType ActorType
+  body      String
+  createdAt DateTime  @default(now())
+  thread    Thread    @relation(fields: [threadId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
+}
+
+model Agent {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  role           String
+  provider       String
+  model          String
+  systemPrompt   String
+  canDraft       Boolean      @default(false)
+  canCritique    Boolean      @default(false)
+  canRevise      Boolean      @default(false)
+  canRecommend   Boolean      @default(false)
+  canApprove     Boolean      @default(false)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  modelCalls     ModelCall[]
+}
+
+model WorkflowRun {
+  id                  String            @id @default(cuid())
+  organizationId      String
+  workspaceId         String
+  projectId           String
+  threadId            String
+  objective           String
+  status              WorkflowRunStatus @default(pending)
+  maxAiCalls          Int               @default(3)
+  maxEstimatedTokens  Int               @default(12000)
+  maxEstimatedCost    Decimal           @default(1.00)
+  estimatedTokensUsed Int               @default(0)
+  estimatedCostUsed   Decimal           @default(0.00)
+  aiCallsUsed         Int               @default(0)
+  errorMessage        String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  project             Project           @relation(fields: [projectId], references: [id])
+  steps               WorkflowStep[]
+  modelCalls          ModelCall[]
+  approvals           Approval[]
+  decisions           Decision[]
+}
+
+model WorkflowStep {
+  id            String             @id @default(cuid())
+  workflowRunId String
+  type          WorkflowStepType
+  status        WorkflowStepStatus @default(pending)
+  sequence      Int
+  inputSummary  String?
+  output        String?
+  errorMessage  String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  workflowRun   WorkflowRun        @relation(fields: [workflowRunId], references: [id])
+  modelCalls    ModelCall[]
+
+  @@unique([workflowRunId, sequence])
+}
+
+model ModelCall {
+  id                    String          @id @default(cuid())
+  organizationId        String
+  projectId             String
+  workflowRunId         String
+  workflowStepId        String
+  agentId               String
+  provider              String
+  model                 String
+  inputSummary          String
+  outputSummary         String
+  estimatedInputTokens  Int
+  estimatedOutputTokens Int
+  estimatedCost         Decimal
+  latencyMs             Int
+  status                ModelCallStatus
+  errorMessage          String?
+  createdAt             DateTime        @default(now())
+  workflowRun           WorkflowRun     @relation(fields: [workflowRunId], references: [id])
+  workflowStep          WorkflowStep    @relation(fields: [workflowStepId], references: [id])
+  agent                 Agent           @relation(fields: [agentId], references: [id])
+}
+
+model Approval {
+  id             String         @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  projectId      String
+  workflowRunId  String
+  status         ApprovalStatus @default(pending)
+  requestedBy    String
+  approvedById   String?
+  rejectionNote  String?
+  createdAt      DateTime       @default(now())
+  decidedAt      DateTime?
+  workflowRun    WorkflowRun    @relation(fields: [workflowRunId], references: [id])
+  approvedBy      User?          @relation("ApprovalActor", fields: [approvedById], references: [id])
+}
+
+model Decision {
+  id                      String         @id @default(cuid())
+  organizationId          String
+  workspaceId             String
+  projectId               String
+  title                   String
+  approvedOutputReference String
+  status                  DecisionStatus @default(proposed)
+  proposedBy              String
+  approvedByHumanUserId   String?
+  workflowRunId           String
+  supersedesDecisionId    String?
+  supersededByDecisionId  String?
+  createdAt               DateTime       @default(now())
+  approvedAt              DateTime?
+  project                 Project        @relation(fields: [projectId], references: [id])
+  workflowRun             WorkflowRun    @relation(fields: [workflowRunId], references: [id])
+}
+
+model AuditEvent {
+  id              String    @id @default(cuid())
+  organizationId  String
+  workspaceId     String?
+  projectId       String?
+  actorType       ActorType
+  actorId         String
+  action          String
+  targetType      String
+  targetId        String
+  workflowRunId   String?
+  workflowStepId  String?
+  provider        String?
+  model           String?
+  estimatedTokens Int?
+  estimatedCost   Decimal?
+  result          String
+  errorCode       String?
+  createdAt       DateTime  @default(now())
+  organization    Organization @relation(fields: [organizationId], references: [id])
+}
