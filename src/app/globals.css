@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: #f7f8fa;
+  color: #171b22;
+}
+
+button {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
