@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ensureDemoProject } from "@/server/app";
 import { WorkflowControls } from "./WorkflowControls";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const snapshot = await ensureDemoProject();
   const latestRun = snapshot.workflowRuns.at(-1);
